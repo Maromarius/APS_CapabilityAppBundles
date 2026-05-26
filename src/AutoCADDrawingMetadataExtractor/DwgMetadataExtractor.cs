@@ -70,15 +70,6 @@ namespace AutoCADDrawingMetadataExtractor
                 LastSavedBy    = summaryInfo.LastSavedBy,
                 RevisionNumber = summaryInfo.RevisionNumber,
             };
-            try
-            {
-                result.DrawingHistory.TotalEditingTime = _db.TotalEditingTime.ToString(@"hh\:mm\:ss");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MetadataExtractor] TotalEditingTime unavailable: {ex.Message}");
-            }
-
             var settings = GetDrawingSettings();
 
             using var tr = _db.TransactionManager.StartTransaction();
