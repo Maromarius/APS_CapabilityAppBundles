@@ -1,0 +1,115 @@
+name: Build & Publish AutoCAD Metadata Extractor
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/AutoCADDrawingMetadataExtractor/**'
+      - 'bundle/AutoCADDrawingMetadataExtractor.bundle/**'
+      - 'scripts/publish-autocad-appbundle.js'
+      - 'scripts/publish-autocad-activity.js'
+      - '.github/workflows/build-publish-autocad-metadata-extractor.yml'
+  workflow_dispatch:
+
+env:
+  ENGINE_VERSION: "25"
+  BUNDLE_NAME:    "AutoCADDrawingMetadataExtractor"
+  ACTIVITY_ID:    "ExtractAutoCADDrawingMetadata"
+  ALIAS:          "prod"
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest  # AutoCAD .NET SDK requires Windows
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # ── 2. Setup .NET ────────────────────────────────────────────────────────
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'  # used only for dotnet CLI tooling; target is net48
+
+      # ── 3. Build the plugin DLL ──────────────────────────────────────────────
+      - name: Build AutoCADDrawingMetadataExtractor.dll
+        run: |
+          dotnet publish src/AutoCADDrawingMetadataExtractor/AutoCADDrawingMetadataExtractor.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained false `
+            --output "${{ github.workspace }}\bundle\AutoCADDrawingMetadataExtractor.bundle\Contents\"
+        shell: pwsh
+
+      # ── 4. Verify required files are present ─────────────────────────────────
+      - name: Verify bundle structure
+        run: |
+          $bundle = "bundle\AutoCADDrawingMetadataExtractor.bundle"
+
+          Write-Host "=== Bundle contents ==="
+          Get-ChildItem -Recurse $bundle | Select-Object FullName | Format-Table
+
+          $checks = @(
+            "$bundle\PackageContents.xml",
+            "$bundle\Contents\AutoCADDrawingMetadataExtractor.dll",
+            "$bundle\Contents\Newtonsoft.Json.dll"
+          )
+          foreach ($f in $checks) {
+            if (-not (Test-Path $f)) { Write-Error "Missing: $f"; exit 1 }
+            Write-Host "✅ $f"
+          }
+        shell: pwsh
+
+      # ── 5. Zip the .bundle folder ────────────────────────────────────────────
+      - name: Zip bundle
+        run: |
+          $bundle = "bundle\AutoCADDrawingMetadataExtractor.bundle"
+          $zipName = "${{ env.BUNDLE_NAME }}.zip"
+
+          # DA requires the .bundle folder at the zip root
+          Compress-Archive -Path $bundle -DestinationPath $zipName -Force
+
+          Write-Host "=== Zip internal structure ==="
+          Add-Type -Assembly System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead("$PWD\$zipName")
+          $zip.Entries | Select-Object FullName | Format-Table
+          $zip.Dispose()
+
+          Write-Host "✅ $zipName created"
+        shell: pwsh
+
+      # ── 6. Upload zip as build artifact ─────────────────────────────────────
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCADDrawingMetadataExtractor-bundle
+          path: AutoCADDrawingMetadataExtractor.zip
+
+      # ── 7. Publish AppBundle to APS Design Automation ────────────────────────
+      - name: Publish AppBundle
+        env:
+          APS_CLIENT_ID:     ${{ secrets.APS_CLIENT_ID }}
+          APS_CLIENT_SECRET: ${{ secrets.APS_CLIENT_SECRET }}
+          APS_NICKNAME:      ${{ secrets.APS_NICKNAME }}
+        run: node scripts/publish-autocad-appbundle.js
+        shell: bash
+
+      # ── 8. Publish Activity to APS Design Automation ─────────────────────────
+      - name: Publish Activity
+        env:
+          APS_CLIENT_ID:     ${{ secrets.APS_CLIENT_ID }}
+          APS_CLIENT_SECRET: ${{ secrets.APS_CLIENT_SECRET }}
+          APS_NICKNAME:      ${{ secrets.APS_NICKNAME }}
+        run: node scripts/publish-autocad-activity.js
+        shell: bash
+
+      # ── 9. Summary ────────────────────────────────────────────────────────────
+      - name: Summary
+        run: |
+          echo "✅ AppBundle '${{ env.BUNDLE_NAME }}+${{ env.ALIAS }}' published."
+          echo "✅ Activity '${{ env.ACTIVITY_ID }}+${{ env.ALIAS }}' published."
+          echo "   Engine  : Autodesk.AutoCAD+${{ env.ENGINE_VERSION }}"
+          echo "   Command : EXTRACTDWGMETADATA"
+          echo "   Output  : result.json"
+        shell: bash

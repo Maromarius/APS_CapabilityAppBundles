@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ApplicationPackage SchemaVersion="1.0"
+                    AutodeskProduct="AutoCAD"
+                    Name="AutoCADDrawingMetadataExtractor"
+                    Description="Extracts all DWG metadata (summary info, layers, blocks, layouts, entity counts, symbol tables) to JSON."
+                    AppVersion="1.0.0"
+                    SupportedLocales="Enu"
+                    ProductType="Application"
+                    Author="APS Team">
+
+  <CompanyDetails Name="APS" Email="" Url="" />
+
+  <Components Description="AutoCADDrawingMetadataExtractor core plugin">
+    <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R2022" SeriesMax="R2025" />
+    <ComponentEntry AppName="AutoCADDrawingMetadataExtractor"
+                    ModuleName="./Contents/AutoCADDrawingMetadataExtractor.dll"
+                    AppDescription="DWG metadata extraction plugin"
+                    LoadOnCommandInvocation="True"
+                    LoadOnAutoCADStartup="False">
+      <Commands GroupName="MetadataExtractorCommands">
+        <Command Global="EXTRACTDWGMETADATA" Local="EXTRACTDWGMETADATA" />
+      </Commands>
+      <AssemblyMappings>
+        <AssemblyMapping Name="AutoCADDrawingMetadataExtractor.Newtonsoft.Json"
+                         Path="./Contents/Newtonsoft.Json.dll" />
+      </AssemblyMappings>
+    </ComponentEntry>
+    <ComponentEntry AppName="AutoCADDrawingMetadataExtractor.Newtonsoft.Json"
+                    AppType="Dependency"
+                    ModuleName="./Contents/Newtonsoft.Json.dll"
+                    AppDescription="JSON serialization library"
+                    LoadOnAutoCADStartup="False" />
+  </Components>
+
+</ApplicationPackage>
