@@ -2,7 +2,6 @@ using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -64,15 +63,6 @@ namespace AutoCADDrawingMetadataExtractor
                 LastSavedBy    = info.LastSavedBy,
                 RevisionNumber = info.RevisionNumber,
             };
-
-            // Custom properties live on DatabaseSummaryInfoBuilder, not on the DatabaseSummaryInfo struct.
-            try
-            {
-                var builder = new DatabaseSummaryInfoBuilder(info);
-                foreach (DictionaryEntry entry in builder.CustomSummaryInfo)
-                    data.CustomProperties[(string)entry.Key] = (string)(entry.Value ?? "");
-            }
-            catch { }
 
             return data;
         }

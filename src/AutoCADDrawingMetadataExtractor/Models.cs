@@ -27,7 +27,7 @@ namespace AutoCADDrawingMetadataExtractor
         public string? Comments { get; set; }
         public string? LastSavedBy { get; set; }
         public string? RevisionNumber { get; set; }
-        public Dictionary<string, string> CustomProperties { get; set; } = new();
+        // CustomProperties not available in AutoCAD.NET.Core — requires the full Windows package.
     }
 
     public class DrawingSettingsData
