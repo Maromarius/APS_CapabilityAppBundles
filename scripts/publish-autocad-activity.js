@@ -143,6 +143,25 @@ async function publishActivity(token, engineId) {
       method:   'POST',
       headers:  daHeaders(token),
     }, JSON.stringify(def));
+
+    if (res.status === 403) {
+      // 100-version limit hit — delete the activity and recreate it fresh.
+      console.log('   ⚠️  100-version limit reached — deleting activity and recreating...');
+      const del = await request({
+        hostname: 'developer.api.autodesk.com',
+        path:     `/da/us-east/v3/activities/${ACTIVITY_ID}`,
+        method:   'DELETE',
+        headers:  daHeaders(token),
+      });
+      if (del.status !== 204 && del.status !== 200)
+        throw new Error(`Delete failed HTTP ${del.status}: ${JSON.stringify(del.body)}`);
+      res = await request({
+        hostname: 'developer.api.autodesk.com',
+        path:     '/da/us-east/v3/activities',
+        method:   'POST',
+        headers:  daHeaders(token),
+      }, JSON.stringify({ id: ACTIVITY_ID, ...def }));
+    }
   }
 
   if (res.status < 200 || res.status >= 300)
