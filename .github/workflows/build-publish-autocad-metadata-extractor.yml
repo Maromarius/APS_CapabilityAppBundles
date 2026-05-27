@@ -14,7 +14,6 @@ concurrency:
   group: publish-autocad-metadata-extractor
   cancel-in-progress: false
 env:
- # ENGINE_VERSION: "26_0"   # Autodesk.AutoCAD+26_0 (AutoCAD 2027, .NET 10, deprecated 2030-03-29)
   ENGINE_VERSION: "25_0"   # Autodesk.AutoCAD+25_0 (AutoCAD 2025, .NET 8) — +26_0 has silent plugin-load failure
   BUNDLE_NAME: "AutoCADDrawingMetadataExtractor"
   ACTIVITY_ID: "ExtractAutoCADDrawingMetadata"
@@ -32,8 +31,8 @@ jobs:
       # ── 2. Setup .NET ────────────────────────────────────────────────────────
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
-        with: 
-              dotnet-version: '8.x'   # AutoCAD 2025 engine (+25_0) runs on .NET 8
+        with:
+          dotnet-version: '8.x'   # AutoCAD 2025 engine (+25_0) runs on .NET 8
 
       # ── 3. Build the plugin DLL ──────────────────────────────────────────────
       - name: Build AutoCADDrawingMetadataExtractor.dll
