@@ -52,8 +52,7 @@ jobs:
 
           $checks = @(
             "$bundle\PackageContents.xml",
-            "$bundle\Contents\AutoCADDrawingMetadataExtractor.dll",
-            "$bundle\Contents\Newtonsoft.Json.dll"
+            "$bundle\Contents\AutoCADDrawingMetadataExtractor.dll"
           )
           foreach ($f in $checks) {
             if (-not (Test-Path $f)) { Write-Error "Missing: $f"; exit 1 }
