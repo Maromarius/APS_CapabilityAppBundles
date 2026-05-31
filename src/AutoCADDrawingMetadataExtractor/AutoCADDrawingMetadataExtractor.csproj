@@ -11,12 +11,22 @@
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
     <NoWarn>CA1416</NoWarn>
+    <!-- DIAGNOSTIC: do not emit *.deps.json — eliminates any host dependency-resolution
+         path so the bundle ships only the bare .dll. -->
+    <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- AutoCAD.NET.Core 25.0.0 — compile-time stub only; DA worker provides the real DLLs. -->
     <PackageReference Include="AutoCAD.NET.Core" Version="25.0.0" ExcludeAssets="runtime" PrivateAssets="all" />
-    <!-- System.Text.Json is built into .NET 8 — no external DLL needed. -->
+  </ItemGroup>
+
+  <!-- DIAGNOSTIC SMOKE TEST: exclude the extractor + models so the assembly has ZERO
+       external dependencies (no System.Text.Json). Restore these once the bisection
+       result is known. -->
+  <ItemGroup>
+    <Compile Remove="DwgMetadataExtractor.cs" />
+    <Compile Remove="Models.cs" />
   </ItemGroup>
 
 </Project>
