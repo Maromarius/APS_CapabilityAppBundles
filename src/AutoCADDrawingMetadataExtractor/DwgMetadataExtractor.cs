@@ -314,10 +314,11 @@ namespace AutoCADDrawingMetadataExtractor
                     data.TotalModelSpaceEntities++;
 
                     string typeName = ent.GetType().Name;
-                    data.ByEntityType[typeName] = data.ByEntityType.GetValueOrDefault(typeName) + 1;
+                    // Dictionary.GetValueOrDefault is .NET Standard 2.1+ (not in net48) — use TryGetValue.
+                    data.ByEntityType[typeName] = (data.ByEntityType.TryGetValue(typeName, out int tc) ? tc : 0) + 1;
 
                     string layerName = ent.Layer ?? "0";
-                    data.ByLayer[layerName] = data.ByLayer.GetValueOrDefault(layerName) + 1;
+                    data.ByLayer[layerName] = (data.ByLayer.TryGetValue(layerName, out int lc) ? lc : 0) + 1;
                 }
                 catch (Exception ex)
                 {
