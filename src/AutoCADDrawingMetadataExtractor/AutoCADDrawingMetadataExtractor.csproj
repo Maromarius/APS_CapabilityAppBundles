@@ -1,18 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Proven DA-for-AutoCAD stack: .NET Framework 4.8 plugin running on the
-         AutoCAD 2024 (+24_3) engine. The +25_0 (.NET 8) engine silently refused to
-         load a correctly built net8.0 appbundle; every working Autodesk sample uses
-         .NET Framework + AcCoreMgd/AcDbMgd, so we match it. -->
+    <!-- Proven DA-for-AutoCAD stack: .NET Framework 4.8 plugin on the AutoCAD 2024
+         (+24_3) engine. The +25_0 (.NET 8) engine silently refused to load a correctly
+         built net8.0 appbundle; net48 + AcCoreMgd/AcDbMgd is the configuration every
+         working Autodesk DA sample uses, and v21 (smoke) confirmed it loads on +24_3. -->
     <TargetFramework>net48</TargetFramework>
     <AssemblyName>AutoCADDrawingMetadataExtractor</AssemblyName>
     <RootNamespace>AutoCADDrawingMetadataExtractor</RootNamespace>
     <LangVersion>latest</LangVersion>
-    <Nullable>disable</Nullable>
+    <Nullable>enable</Nullable>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
-    <NoWarn>CA1416</NoWarn>
+    <NoWarn>CA1416;CS8632</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,13 +21,9 @@
          (equivalent to Copy Local = false); the DA worker provides them. -->
     <PackageReference Include="AutoCAD.NET.Core" Version="20.0.0" ExcludeAssets="runtime" PrivateAssets="all" />
     <PackageReference Include="AutoCAD.NET.Model" Version="20.0.0" ExcludeAssets="runtime" PrivateAssets="all" />
-  </ItemGroup>
-
-  <!-- DIAGNOSTIC SMOKE TEST: exclude the extractor + models. Re-include and convert
-       JSON to Newtonsoft.Json once the net48/+24_3 load is confirmed. -->
-  <ItemGroup>
-    <Compile Remove="DwgMetadataExtractor.cs" />
-    <Compile Remove="Models.cs" />
+    <!-- net48 has no in-box JSON. Newtonsoft IS copied into Contents/ (Copy Local) and
+         shipped in the bundle, exactly like the official Autodesk DA-AutoCAD sample. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
 </Project>
