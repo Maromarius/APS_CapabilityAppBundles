@@ -1,0 +1,127 @@
+name: Build & Publish RevitIFCExport to APS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/RevitIFCExport/**'
+      - 'bundle/RevitIFCExport.bundle/**'
+      - 'scripts/publish-ifc-activity.js'
+      - 'scripts/smoke-test-revit-ifc.js'
+      - '.github/workflows/build-publish-revit-ifc-export.yml'
+  workflow_dispatch:
+
+env:
+  ENGINE_VERSION: "2026"       # MUST match SeriesMin/Max in PackageContents.xml
+  BUNDLE_NAME:    "RevitIFCExport"
+  ALIAS:          "prod"
+  ACTIVITY_ID:    "ExportRvtToIFC"
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest   # REQUIRED — Revit SDK DLLs are Windows-only PE binaries
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+
+      # ── Build toolchain ───────────────────────────────────────────────────────
+      - uses: microsoft/setup-msbuild@v2
+      - uses: NuGet/setup-nuget@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── Restore NuGet packages ────────────────────────────────────────────────
+      - name: Restore NuGet packages
+        run: nuget restore src/RevitIFCExport/RevitIFCExport.csproj
+
+      # ── Compile the plugin DLL ────────────────────────────────────────────────
+      #   OutputPath must point directly into bundle/RevitIFCExport.bundle/Contents/
+      #   so the DLL lands next to the .addin file — that's the correct bundle layout.
+      - name: Build RevitIFCExport.dll
+        run: |
+          msbuild src/RevitIFCExport/RevitIFCExport.csproj `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:OutputPath="${{ github.workspace }}\bundle\RevitIFCExport.bundle\Contents\"
+        shell: pwsh
+
+      # ── Verify layout & create the zip ───────────────────────────────────────
+      #   CRITICAL: -Path points to the .bundle FOLDER (not .bundle\*)
+      #   Zip root MUST contain RevitIFCExport.bundle/ as a folder.
+      - name: Verify bundle layout and create zip
+        run: |
+          $bundle = "bundle\RevitIFCExport.bundle"
+          Write-Host "=== Bundle contents ===" -ForegroundColor Cyan
+          Get-ChildItem -Recurse $bundle | Select-Object FullName
+
+          if (-not (Test-Path "$bundle\PackageContents.xml")) {
+            Write-Error "MISSING: PackageContents.xml"; exit 1
+          }
+          if (-not (Test-Path "$bundle\Contents\RevitIFCExport.addin")) {
+            Write-Error "MISSING: Contents\RevitIFCExport.addin"; exit 1
+          }
+          if (-not (Test-Path "$bundle\Contents\RevitIFCExport.dll")) {
+            Write-Error "MISSING: Contents\RevitIFCExport.dll (build may have failed)"; exit 1
+          }
+          # DesignAutomationBridge.dll must ship with the bundle (worker doesn't provide it)
+          if (-not (Test-Path "$bundle\Contents\DesignAutomationBridge.dll")) {
+            Write-Error "MISSING: Contents\DesignAutomationBridge.dll"; exit 1
+          }
+
+          Compress-Archive -Path $bundle -DestinationPath RevitIFCExport.zip -Force
+
+          Write-Host "=== Zip entries ===" -ForegroundColor Cyan
+          Add-Type -Assembly System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead("$PWD\RevitIFCExport.zip")
+          $zip.Entries | Select-Object FullName | Format-Table -AutoSize
+          $zip.Dispose()
+
+          Write-Host "Zip created: RevitIFCExport.zip" -ForegroundColor Green
+        shell: pwsh
+
+      # ── Upload zip as build artifact (for debugging / manual download) ────────
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RevitIFCExport-bundle
+          path: RevitIFCExport.zip
+
+      # ── Publish AppBundle to APS ──────────────────────────────────────────────
+      - name: Publish AppBundle to APS
+        env:
+          APS_CLIENT_ID:     ${{ secrets.APS_CLIENT_ID }}
+          APS_CLIENT_SECRET: ${{ secrets.APS_CLIENT_SECRET }}
+          APS_NICKNAME:      ${{ secrets.APS_NICKNAME }}
+          BUNDLE_NAME:       ${{ env.BUNDLE_NAME }}
+          ENGINE_VERSION:    ${{ env.ENGINE_VERSION }}
+          ALIAS:             ${{ env.ALIAS }}
+        run: node scripts/publish-appbundle.js
+        shell: bash
+
+      # ── Publish Activity to APS ───────────────────────────────────────────────
+      - name: Publish Activity to APS
+        env:
+          APS_CLIENT_ID:     ${{ secrets.APS_CLIENT_ID }}
+          APS_CLIENT_SECRET: ${{ secrets.APS_CLIENT_SECRET }}
+          APS_NICKNAME:      ${{ secrets.APS_NICKNAME }}
+          BUNDLE_NAME:       ${{ env.BUNDLE_NAME }}
+          ENGINE_VERSION:    ${{ env.ENGINE_VERSION }}
+          ALIAS:             ${{ env.ALIAS }}
+          ACTIVITY_ID:       ${{ env.ACTIVITY_ID }}
+        run: node scripts/publish-ifc-activity.js
+        shell: bash
+
+      # ── End-to-end smoke test ─────────────────────────────────────────────────
+      - name: Smoke test — run ExportRvtToIFC end-to-end
+        env:
+          APS_CLIENT_ID:     ${{ secrets.APS_CLIENT_ID }}
+          APS_CLIENT_SECRET: ${{ secrets.APS_CLIENT_SECRET }}
+          APS_NICKNAME:      ${{ secrets.APS_NICKNAME }}
+          SMOKE_ACTIVITY_ID: ${{ env.ACTIVITY_ID }}
+          ALIAS:             ${{ env.ALIAS }}
+          SAMPLE_RVT:        test/sample.rvt
+        run: node scripts/smoke-test-revit-ifc.js
+        shell: bash

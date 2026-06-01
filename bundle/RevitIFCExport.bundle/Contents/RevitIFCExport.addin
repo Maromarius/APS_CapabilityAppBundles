@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CRITICAL RULES (from hard-won experience):
+  - Type MUST be "DBApplication" — UI apps don't work headlessly in DA
+  - Assembly uses .\ prefix — resolved relative to this .addin file's location
+  - This file MUST live in Contents/ alongside the DLL
+  - FullClassName must EXACTLY match the C# namespace + class name
+  - AddInId must be a fresh GUID — never reuse another bundle's GUID
+-->
+<RevitAddIns>
+  <AddIn Type="DBApplication">
+    <Name>RevitIFCExport</Name>
+    <Assembly>.\RevitIFCExport.dll</Assembly>
+    <AddInId>6e754145-d6a4-4a0b-b9e7-864252036e23</AddInId>
+    <FullClassName>RevitIFCExport.RevitIFCExportApp</FullClassName>
+    <VendorId>APS</VendorId>
+    <VendorDescription>APS Design Automation — IFC Export</VendorDescription>
+  </AddIn>
+</RevitAddIns>
