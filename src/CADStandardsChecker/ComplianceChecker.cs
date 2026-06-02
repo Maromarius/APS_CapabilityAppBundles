@@ -678,33 +678,62 @@ namespace CADStandardsChecker
                 Category = "DrawingHygiene",
             };
 
-            // Count unreferenced symbols using PurgeCheck (available headlessly).
-            // An ObjectIdCollection is populated with all purgeable objects.
-            var purgeable = new ObjectIdCollection();
-            db.Purge(purgeable);
+            // Database.Purge(ObjectIdCollection) filters a CANDIDATE list: it removes from
+            // the collection any IDs that CANNOT be erased. To find all purgeable symbols,
+            // collect every symbol-table record first, then let Purge filter to the purgeable ones.
+            var candidates = new ObjectIdCollection();
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                // Collect all named-object table records that are candidates for purging
+                foreach (ObjectId tblId in new ObjectId[] {
+                    db.LayerTableId, db.TextStyleTableId, db.LinetypeTableId,
+                    db.DimStyleTableId, db.BlockTableId,
+                })
+                {
+                    try
+                    {
+                        var tbl = (SymbolTable)tr.GetObject(tblId, OpenMode.ForRead);
+                        foreach (ObjectId id in tbl)
+                            candidates.Add(id);
+                    }
+                    catch { /* skip inaccessible tables */ }
+                }
+                tr.Commit();
+            }
 
-            if (purgeable.Count == 0)
+            if (candidates.Count == 0)
+            {
+                result.Result  = "pass";
+                result.Message = "Drawing contains no symbol table records (empty drawing).";
+                return result;
+            }
+
+            // Purge() removes from the collection anything that CANNOT be erased;
+            // what remains are the records that CAN be (are unreferenced / purgeable).
+            db.Purge(candidates);
+
+            if (candidates.Count == 0)
             {
                 result.Result  = "pass";
                 result.Message = "Drawing has no unreferenced (purgeable) symbol definitions.";
                 return result;
             }
 
-            // Categorize by object type name
+            // Categorize survivors by type
             var countByType = new Dictionary<string, int>();
             using (var tr = db.TransactionManager.StartTransaction())
             {
-                foreach (ObjectId id in purgeable)
+                foreach (ObjectId id in candidates)
                 {
                     try
                     {
-                        var obj = tr.GetObject(id, OpenMode.ForRead);
-                        string typeName = obj.GetType().Name;
-                        if (!countByType.TryGetValue(typeName, out int c))
-                            countByType[typeName] = 0;
-                        countByType[typeName]++;
+                        var obj      = tr.GetObject(id, OpenMode.ForRead);
+                        string tName = obj.GetType().Name;
+                        if (!countByType.TryGetValue(tName, out int c))
+                            countByType[tName] = 0;
+                        countByType[tName]++;
                     }
-                    catch { /* skip inaccessible objects */ }
+                    catch { /* skip inaccessible */ }
                 }
                 tr.Commit();
             }
@@ -720,8 +749,8 @@ namespace CADStandardsChecker
             }
 
             result.Result      = "fail";
-            result.Message     = $"Drawing contains {purgeable.Count} purgeable (unreferenced) object(s) — run PURGE before submission.";
-            result.Remediation = "Open the drawing locally and run PURGE > PURGEALL, or use the Design Automation AutoCADDrawingUpdater to run PURGE headlessly before checking.";
+            result.Message     = $"Drawing contains {candidates.Count} purgeable (unreferenced) object(s) — run PURGE before submission.";
+            result.Remediation = "Open the drawing locally and run PURGE > PURGEALL, or use Design Automation with the PURGE command before running this check.";
             return result;
         }
 

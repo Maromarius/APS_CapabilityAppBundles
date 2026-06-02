@@ -20,7 +20,7 @@ env:
   ENGINE_VERSION: "24_3"           # Autodesk.AutoCAD+24_3 (AutoCAD 2024, net48) — NOT +25_0/+26_0
   BUNDLE_NAME:    "CADStandardsChecker"
   ACTIVITY_ID:    "CheckCADStandards"
-  COMMAND:        "CHECKSTANDARDS"
+  COMMAND:        "APSCADCHECK"   # Not CHECKSTANDARDS — that is a built-in AutoCAD command
   ALIAS:          "prod"
 
 jobs:

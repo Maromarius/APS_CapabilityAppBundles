@@ -27,17 +27,20 @@ namespace CADStandardsChecker
 {
     public class Commands
     {
-        // Verb must match <Command Global="CHECKSTANDARDS"> in PackageContents.xml
+        // Verb must match <Command Global="APSCADCHECK"> in PackageContents.xml
         // and COMMAND env var in the CI/publish script.
-        [CommandMethod("CHECKSTANDARDS", CommandFlags.Modal)]
+        // NOTE: Intentionally NOT named "CHECKSTANDARDS" — that is a built-in AutoCAD
+        // command (opens the Check Standards dialog). In accoreconsole the built-in
+        // takes precedence and the dialog fails headlessly, producing "Unknown command".
+        [CommandMethod("APSCADCHECK", CommandFlags.Modal)]
         public static void CheckStandards()
         {
             try
             {
-                Console.WriteLine("[CHECKSTANDARDS] Starting CAD standards compliance check...");
+                Console.WriteLine("[APSCADCHECK] Starting CAD standards compliance check...");
 
                 var wdFiles = Directory.GetFiles(Directory.GetCurrentDirectory());
-                Console.WriteLine($"[CHECKSTANDARDS] Working dir files: {string.Join(", ", wdFiles.Select(f => Path.GetFileName(f)))}");
+                Console.WriteLine($"[APSCADCHECK] Working dir files: {string.Join(", ", wdFiles.Select(f => Path.GetFileName(f)))}");
 
                 // Resolve input DWG database (active document or working database)
                 var doc = Application.DocumentManager.MdiActiveDocument;
@@ -49,33 +52,33 @@ namespace CADStandardsChecker
                 RunParams? runParams = null;
                 if (File.Exists("params.json"))
                 {
-                    Console.WriteLine("[CHECKSTANDARDS] Loading params.json...");
+                    Console.WriteLine("[APSCADCHECK] Loading params.json...");
                     runParams = JsonConvert.DeserializeObject<RunParams>(File.ReadAllText("params.json"));
                 }
 
                 // Optional: .dws standards file
                 string? dwsPath = File.Exists("standards.dws") ? "standards.dws" : null;
                 if (dwsPath != null)
-                    Console.WriteLine("[CHECKSTANDARDS] Found standards.dws — will compare against standards file.");
+                    Console.WriteLine("[APSCADCHECK] Found standards.dws — will compare against standards file.");
 
                 // Run compliance check
                 var report = ComplianceChecker.Run(db, runParams, dwsPath, fileName);
 
-                Console.WriteLine($"[CHECKSTANDARDS] Overall status: {report.OverallStatus}  " +
+                Console.WriteLine($"[APSCADCHECK] Overall status: {report.OverallStatus}  " +
                     $"(pass={report.Summary.Pass} warn={report.Summary.Warning} fail={report.Summary.Fail})");
 
                 // ── Write report.json ────────────────────────────────────────
                 string reportJson = JsonConvert.SerializeObject(report, Formatting.Indented);
                 File.WriteAllText("report.json", reportJson, new UTF8Encoding(false));
-                Console.WriteLine("[CHECKSTANDARDS] Wrote report.json");
+                Console.WriteLine("[APSCADCHECK] Wrote report.json");
 
                 // ── Write summary.csv ────────────────────────────────────────
                 WriteSummaryCsv(report);
-                Console.WriteLine("[CHECKSTANDARDS] Wrote summary.csv");
+                Console.WriteLine("[APSCADCHECK] Wrote summary.csv");
 
                 // ── Write remediation.md ─────────────────────────────────────
                 WriteRemediationMd(report);
-                Console.WriteLine("[CHECKSTANDARDS] Wrote remediation.md");
+                Console.WriteLine("[APSCADCHECK] Wrote remediation.md");
 
                 // Also write result.json (smoke gate checks for this file)
                 var gate = new
@@ -88,11 +91,11 @@ namespace CADStandardsChecker
                 };
                 File.WriteAllText("result.json", JsonConvert.SerializeObject(gate, Formatting.Indented), new UTF8Encoding(false));
 
-                Console.WriteLine("[CHECKSTANDARDS] Done.");
+                Console.WriteLine("[APSCADCHECK] Done.");
             }
             catch (System.Exception ex)
             {
-                Console.WriteLine($"[CHECKSTANDARDS] ERROR: {ex.Message}");
+                Console.WriteLine($"[APSCADCHECK] ERROR: {ex.Message}");
                 var err = new { ok = false, error = ex.Message, stack = ex.StackTrace };
                 string errJson = JsonConvert.SerializeObject(err, Formatting.Indented);
                 // Always emit both outputs so the workitem has diagnosable artifacts

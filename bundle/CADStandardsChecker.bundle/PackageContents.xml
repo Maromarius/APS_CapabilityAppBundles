@@ -18,7 +18,8 @@
                     LoadOnCommandInvocation="True"
                     LoadOnAutoCADStartup="True">
       <Commands GroupName="CADStandardsCheckerCommands">
-        <Command Global="CHECKSTANDARDS" Local="CHECKSTANDARDS" />
+        <!-- Not "CHECKSTANDARDS" — that is a built-in AutoCAD command that shadows plugins in accoreconsole. -->
+        <Command Global="APSCADCHECK" Local="APSCADCHECK" />
       </Commands>
     </ComponentEntry>
   </Components>

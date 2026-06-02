@@ -11,7 +11,8 @@ const NICKNAME            = required('APS_NICKNAME');
 const BUNDLE_NAME         = process.env.BUNDLE_NAME     || 'CADStandardsChecker';
 const ALIAS               = process.env.ALIAS           || 'prod';
 const ACTIVITY_ID         = process.env.ACTIVITY_ID     || 'CheckCADStandards';
-const COMMAND             = process.env.COMMAND         || 'CHECKSTANDARDS';
+// APSCADCHECK avoids the built-in AutoCAD "CHECKSTANDARDS" command that shadows plugins in accoreconsole.
+const COMMAND             = process.env.COMMAND         || 'APSCADCHECK';
 const ENGINE_VERSION_HINT = process.env.ENGINE_VERSION  || null;
 
 function required(name) {
