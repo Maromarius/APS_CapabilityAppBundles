@@ -10,8 +10,8 @@ namespace InventorBOMExtractor
     // via QI without needing Autodesk.Inventor.Interop.dll at compile time.
     // IID extracted from UpdateIPTParam.dll (official Inventor DA sample) by parsing the
     // .NET metadata TypeDef[4]=Inventor.ApplicationAddInServer CustomAttribute blob.
-    [Guid("E3571299-DB40-11D2-B783-0060B0F159EF")]
-    [InterfaceType(ComInterfaceType.InterfaceIsDual)]  // InterfaceIsIDispatch does NOT respond to QI for the custom IID; InterfaceIsDual does.
+    [Guid("E3571293-DB40-11D2-B783-0060B0F159EF")]  // IID from UpdateIPTParam.dll PE metadata TypeDef[4] = Inventor.ApplicationAddInServer
+    [InterfaceType(ComInterfaceType.InterfaceIsDual)]
     [ComVisible(true)]
     public interface IApplicationAddInServer
     {
