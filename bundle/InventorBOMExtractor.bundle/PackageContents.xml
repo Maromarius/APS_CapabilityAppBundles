@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ApplicationPackage SchemaVersion="1.0"
+                    Version="1.0"
+                    ProductCode="{00b94922-a4b5-4867-98bc-4e9418b04cfe}"
+                    Name="InventorBOMExtractor"
+                    Description="Extracts the Bill of Materials from an Inventor assembly (IAM) to result.json."
+                    Author="APS Team">
+  <CompanyDetails Name="APS" Url="" Email="" />
+  <Components>
+    <!-- Platform="Inventor" is required for Inventor DA bundles -->
+    <RuntimeRequirements OS="Win64" Platform="Inventor" />
+    <!-- ModuleName must point to the .Inventor.addin manifest, not the DLL directly -->
+    <ComponentEntry AppName="InventorBOMExtractor"
+                    ModuleName="./Contents/InventorBOMExtractor.Inventor.addin"
+                    AppDescription="Inventor BOM extraction plugin"
+                    LoadOnAutoCADStartup="False"
+                    LoadOnCommandInvocation="False" />
+  </Components>
+</ApplicationPackage>

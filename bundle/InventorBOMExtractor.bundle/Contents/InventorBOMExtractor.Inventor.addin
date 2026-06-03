@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Addin Type="Plugin">
+  <ClassId>{00b94922-a4b5-4867-98bc-4e9418b04cfe}</ClassId>
+  <ClientId>{00b94922-a4b5-4867-98bc-4e9418b04cfe}</ClientId>
+  <DisplayName>InventorBOMExtractor</DisplayName>
+  <Description>Extracts BOM from Inventor assembly to result.json</Description>
+  <Assembly>InventorBOMExtractor.dll</Assembly>
+</Addin>
