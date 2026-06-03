@@ -21,6 +21,23 @@ namespace InventorBOMExtractor
         // Called by Inventor DA when no arguments map is provided.
         public void Run(dynamic doc)
         {
+            // SMOKE STUB: prove Run() is called before attempting any Inventor API calls.
+            // If result.json appears in output with smoke=true, Run() works end-to-end.
+            // Remove this stub once confirmed and restore real BOM extraction.
+            File.WriteAllText("activate_debug.txt", "[InventorBOMExtractor] Run() was called at " + DateTime.UtcNow.ToString("o"), new UTF8Encoding(false));
+            var smokeReport = new BOMReport
+            {
+                GeneratedAt = DateTime.UtcNow.ToString("o"),
+                Source = "smoke-stub",
+                TotalComponents = 0,
+                TopLevelRows = new List<BOMRow>(),
+            };
+            smokeReport.Errors.Add("SMOKE_STUB: Run() reached — replace with real BOM logic");
+            WriteResult(smokeReport);
+            Trace.TraceInformation("[InventorBOMExtractor] SMOKE STUB: result.json written. Run() confirmed callable.");
+            return;
+            // ── real BOM extraction below (unreachable until smoke passes) ──
+#pragma warning disable CS0162
             var report = new BOMReport { GeneratedAt = DateTime.UtcNow.ToString("o") };
             try
             {
@@ -54,6 +71,7 @@ namespace InventorBOMExtractor
             {
                 WriteResult(report);
             }
+#pragma warning restore CS0162
         }
 
         private List<BOMRow> ExtractBOM(dynamic asmDoc, ref int total)
