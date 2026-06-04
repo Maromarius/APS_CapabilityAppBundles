@@ -65,6 +65,15 @@ namespace InventorBOMExtractor
                 }
                 else
                 {
+                    // DIAG: did the assembly's references resolve? (0 => unresolved/empty)
+                    try
+                    {
+                        object cdef = Prop(doc, "ComponentDefinition");
+                        object occs = Prop(cdef, "Occurrences");
+                        report.Errors.Add($"DIAG: Occurrences.Count={(int)Prop(occs, "Count")}");
+                    }
+                    catch (Exception de) { report.Errors.Add($"DIAG: Occurrences err: {de.Message}"); }
+
                     int total = 0;
                     report.TopLevelRows = ExtractBOM(doc, ref total);
                     report.TotalComponents = total;
@@ -90,8 +99,6 @@ namespace InventorBOMExtractor
             object compDef = Prop(asmDoc, "ComponentDefinition");
             _stage = "BOM";
             object bom = Prop(compDef, "BOM");
-            _stage = "StructuredViewFirstLevelOnly=false";
-            try { SetProp(bom, "StructuredViewFirstLevelOnly", false); } catch { }
             _stage = "StructuredViewEnabled=true";
             SetProp(bom, "StructuredViewEnabled", true);
             _stage = "BOMViews";
