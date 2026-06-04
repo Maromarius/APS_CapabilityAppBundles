@@ -65,15 +65,6 @@ namespace InventorBOMExtractor
                 }
                 else
                 {
-                    // DIAG: did the assembly's references resolve? (0 => unresolved/empty)
-                    try
-                    {
-                        object cdef = Prop(doc, "ComponentDefinition");
-                        object occs = Prop(cdef, "Occurrences");
-                        report.Errors.Add($"DIAG: Occurrences.Count={(int)Prop(occs, "Count")}");
-                    }
-                    catch (Exception de) { report.Errors.Add($"DIAG: Occurrences err: {de.Message}"); }
-
                     int total = 0;
                     report.TopLevelRows = ExtractBOM(doc, ref total);
                     report.TotalComponents = total;
@@ -92,81 +83,101 @@ namespace InventorBOMExtractor
             }
         }
 
+        // The structured BOM-view API (BOMViews.Item("Structured").BOMRows) throws E_FAIL under
+        // the headless Inventor Server used by Design Automation. The assembly OCCURRENCE tree
+        // is fully available (verified: 63 occurrences resolved), so we build the BOM from it:
+        // walk occurrences, roll up identical part numbers into a quantity per level, recurse
+        // into sub-assemblies for hierarchy.
         private List<BOMRow> ExtractBOM(object asmDoc, ref int total)
         {
             var rows = new List<BOMRow>();
             _stage = "ComponentDefinition";
             object compDef = Prop(asmDoc, "ComponentDefinition");
-            _stage = "BOM";
-            object bom = Prop(compDef, "BOM");
-            _stage = "StructuredViewEnabled=true";
-            SetProp(bom, "StructuredViewEnabled", true);
-            _stage = "BOMViews";
-            object views = Prop(bom, "BOMViews");
-            // BOMViews.Item("Structured") is the documented access; InvokeMember marshals the
-            // string to a VARIANT properly (unlike dynamic).
-            _stage = "BOMViews.Item(\"Structured\")";
-            object view = Item(views, "Structured");
-            _stage = "view.BOMRows";
-            object bomRows = Prop(view, "BOMRows");
-            WalkRows(bomRows, rows, ref total);
+            _stage = "Occurrences";
+            object occs = Prop(compDef, "Occurrences");
+            WalkOccurrences(occs, rows, ref total);
             return rows;
         }
 
-        private void WalkRows(object bomRows, List<BOMRow> target, ref int total)
+        private void WalkOccurrences(object occs, List<BOMRow> target, ref int total)
         {
-            _stage = "BOMRows.Count";
-            int count = (int)Prop(bomRows, "Count");
+            int count = (int)Prop(occs, "Count");
+            var order = new List<string>();
+            var rowByKey = new Dictionary<string, BOMRow>();
+            var firstOccByKey = new Dictionary<string, object>();
+
             for (int i = 1; i <= count; i++)
             {
+                object occ;
+                try { occ = Item(occs, i); } catch { continue; }
+
+                var entry = new BOMRow { Quantity = 1, Unit = "ea" };
+                object def = null;
+                try { def = Prop(occ, "Definition"); } catch { }
+                if (def != null) FillProps(def, entry);
+
+                // Roll up identical parts (by part number; fall back to occurrence name).
+                string key = !string.IsNullOrWhiteSpace(entry.PartNumber)
+                    ? entry.PartNumber
+                    : SafeStr(() => Str(Prop(occ, "Name")));
+
+                if (rowByKey.TryGetValue(key, out var existing))
+                {
+                    existing.Quantity += 1;
+                }
+                else
+                {
+                    rowByKey[key] = entry;
+                    firstOccByKey[key] = occ;
+                    order.Add(key);
+                }
+            }
+
+            int item = 0;
+            foreach (var key in order)
+            {
+                item++;
                 total++;
-                _stage = $"BOMRows.Item({i})";
-                object row = Item(bomRows, i);
+                var entry = rowByKey[key];
+                entry.ItemNumber = item.ToString();
 
-                var entry = new BOMRow
+                if (entry.IsAssembly)
                 {
-                    ItemNumber = SafeStr(() => Str(Prop(row, "ItemNumber"))),
-                    Quantity   = SafeNum(() => ToDouble(Prop(row, "ItemQuantity"))),
-                };
-
-                try
-                {
-                    object compDefs = Prop(row, "ComponentDefinitions");
-                    object cd = Item(compDefs, 1);
-
-                    // Virtual components have no Document — read PropertySets off the def itself.
-                    object propHolder = cd;
-                    try { object docObj = Prop(cd, "Document"); if (docObj != null) propHolder = docObj; }
-                    catch { propHolder = cd; }
-
-                    try { entry.IsAssembly = (int)Prop(propHolder, "DocumentType") == kAssemblyDocumentObject; }
-                    catch { }
-
-                    object propSets = Prop(propHolder, "PropertySets");
-                    object dtp = Item(propSets, "Design Tracking Properties");
-                    entry.PartNumber  = PropVal(dtp, "Part Number");
-                    entry.Description = PropVal(dtp, "Description");
-                    entry.Material    = PropVal(dtp, "Material");
-                    string unit       = PropVal(dtp, "Unit Quantity");
-                    entry.Unit        = string.IsNullOrWhiteSpace(unit) ? "ea" : unit;
-
-                    // Numeric mass from computed mass properties (not the iProperty string).
-                    try { object mp = Prop(cd, "MassProperties"); entry.Mass = Str(Prop(mp, "Mass")); }
+                    try
+                    {
+                        object sub = Prop(firstOccByKey[key], "SubOccurrences");
+                        if (sub != null && (int)Prop(sub, "Count") > 0)
+                            WalkOccurrences(sub, entry.ChildRows, ref total);
+                    }
                     catch { }
                 }
-                catch { }
-
-                // ChildRows can be null (parts-only views / leaf rows).
-                try
-                {
-                    object childRows = Prop(row, "ChildRows");
-                    if (childRows != null)
-                        WalkRows(childRows, entry.ChildRows, ref total);
-                }
-                catch { }
-
                 target.Add(entry);
             }
+        }
+
+        // Fill part metadata from a ComponentDefinition (handles virtual components w/o Document).
+        private void FillProps(object def, BOMRow entry)
+        {
+            object propHolder = def;
+            try { object docObj = Prop(def, "Document"); if (docObj != null) propHolder = docObj; }
+            catch { propHolder = def; }
+
+            try { entry.IsAssembly = (int)Prop(propHolder, "DocumentType") == kAssemblyDocumentObject; }
+            catch { }
+
+            try
+            {
+                object propSets = Prop(propHolder, "PropertySets");
+                object dtp = Item(propSets, "Design Tracking Properties");
+                entry.PartNumber  = PropVal(dtp, "Part Number");
+                entry.Description = PropVal(dtp, "Description");
+                entry.Material    = PropVal(dtp, "Material");
+            }
+            catch { }
+
+            // Numeric mass from computed mass properties (not the "Mass" iProperty string).
+            try { object mp = Prop(def, "MassProperties"); entry.Mass = Str(Prop(mp, "Mass")); }
+            catch { }
         }
 
         private static string PropVal(object propSet, string name)
